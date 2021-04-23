@@ -1,3 +1,4 @@
+import datetime
 import random
 import requests
 import time
@@ -10,7 +11,7 @@ import logging
 import os
 from .utilities import update_messager
 from .exceptions import *
-
+from time import sleep
 
 os.environ["no_proxy"] = "127.0.0.1,localhost"
 
@@ -237,29 +238,42 @@ class TikTokApi:
 
         query = {"verifyFp": verify_fp, "did": did, "_signature": signature}
         url = "{}&{}".format(kwargs["url"], urlencode(query))
-        r = requests.get(
-            url,
-            headers={
-                "authority": "m.tiktok.com",
-                "method": "GET",
-                "path": url.split("tiktok.com")[1],
-                "scheme": "https",
-                "accept": "application/json, text/plain, */*",
-                "accept-encoding": "gzip, deflate, br",
-                "accept-language": "en-US,en;q=0.9",
-                "cache-control": "no-cache",
-                "dnt": "1",
-                "origin": referrer,
-                "pragma": "no-cache",
-                "referer": referrer,
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "same-site",
-                "user-agent": userAgent,
-            },
-            cookies=self.get_cookies(**kwargs),
-            proxies=self.__format_proxy(proxy),
-        )
+
+        done = False
+        n = 1
+        while not done:
+            try:
+                r = requests.get(
+                    url,
+                    headers={
+                        "authority": "m.tiktok.com",
+                        "method": "GET",
+                        "path": url.split("tiktok.com")[1],
+                        "scheme": "https",
+                        "accept": "application/json, text/plain, */*",
+                        "accept-encoding": "gzip, deflate, br",
+                        "accept-language": "en-US,en;q=0.9",
+                        "cache-control": "no-cache",
+                        "dnt": "1",
+                        "origin": referrer,
+                        "pragma": "no-cache",
+                        "referer": referrer,
+                        "sec-fetch-dest": "empty",
+                        "sec-fetch-mode": "cors",
+                        "sec-fetch-site": "same-site",
+                        "user-agent": userAgent,
+                    },
+                    cookies=self.get_cookies(**kwargs),
+                    proxies=self.__format_proxy(proxy),
+                    timeout=3
+                )
+                done = True
+            except:
+                if n == 50:
+                    print('retry 50!')
+                n = n + 1
+                sleep(1)
+
         try:
             json = r.json()
             if json.get("type") == "verify":
@@ -532,8 +546,9 @@ class TikTokApi:
 
         response = []
         first = True
+        last_time = int((datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%s'))
 
-        while len(response) < count:
+        while last_time > kwargs.get('time_limit'):
             if count < maxCount:
                 realCount = count
             else:
@@ -551,6 +566,7 @@ class TikTokApi:
                 "priority_region": region,
                 "language": language,
             }
+
             api_url = "{}api/post/item_list/?{}&{}".format(
                 BASE_URL, self.__add_new_params__(), urlencode(query)
             )
@@ -567,6 +583,8 @@ class TikTokApi:
 
             realCount = count - len(response)
             cursor = res["cursor"]
+            if response:
+                last_time = response[-1].get('createTime')
 
             first = False
 
@@ -625,16 +643,16 @@ class TikTokApi:
         kwargs["custom_did"] = did
 
         api_url = (
-            BASE_URL + "api/post/item_list/?{}&count={}&id={}&type=1&secUid={}"
-            "&cursor={}&sourceType=8&appId=1233&region={}&language={}".format(
-                self.__add_new_params__(),
-                page_size,
-                str(userID),
-                str(secUID),
-                cursor,
-                region,
-                language,
-            )
+                BASE_URL + "api/post/item_list/?{}&count={}&id={}&type=1&secUid={}"
+                           "&cursor={}&sourceType=8&appId=1233&region={}&language={}".format(
+            self.__add_new_params__(),
+            page_size,
+            str(userID),
+            str(secUID),
+            cursor,
+            region,
+            language,
+        )
         )
 
         return self.getData(url=api_url, **kwargs)
@@ -951,7 +969,7 @@ class TikTokApi:
         return data
 
     def get_recommended_tiktoks_by_video_id(
-        self, id, count=30, minCursor=0, maxCursor=0, **kwargs
+            self, id, count=30, minCursor=0, maxCursor=0, **kwargs
     ) -> dict:
         """Returns a dictionary listing reccomended TikToks for a specific TikTok video.
 
@@ -1220,7 +1238,7 @@ class TikTokApi:
         return user
 
     def get_suggested_users_by_id(
-        self, userId="6745191554350760966", count=30, **kwargs
+            self, userId="6745191554350760966", count=30, **kwargs
     ) -> list:
         """Returns suggested users given a different TikTok user.
 
@@ -1254,7 +1272,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_users_by_id_crawler(
-        self, count=30, startingId="6745191554350760966", **kwargs
+            self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for listing of all user objects it can find.
 
@@ -1288,7 +1306,7 @@ class TikTokApi:
         return users[:count]
 
     def get_suggested_hashtags_by_id(
-        self, count=30, userId="6745191554350760966", **kwargs
+            self, count=30, userId="6745191554350760966", **kwargs
     ) -> list:
         """Returns suggested hashtags given a TikTok user.
 
@@ -1321,7 +1339,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_hashtags_by_id_crawler(
-        self, count=30, startingId="6745191554350760966", **kwargs
+            self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for as many hashtags as it can find.
 
@@ -1354,7 +1372,7 @@ class TikTokApi:
         return hashtags[:count]
 
     def get_suggested_music_by_id(
-        self, count=30, userId="6745191554350760966", **kwargs
+            self, count=30, userId="6745191554350760966", **kwargs
     ) -> list:
         """Returns suggested music given a TikTok user.
 
@@ -1389,7 +1407,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_music_id_crawler(
-        self, count=30, startingId="6745191554350760966", **kwargs
+            self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for hashtags.
 
