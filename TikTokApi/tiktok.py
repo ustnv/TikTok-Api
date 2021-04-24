@@ -548,7 +548,12 @@ class TikTokApi:
         first = True
         last_time = int((datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%s'))
 
-        while last_time > kwargs.get('time_limit'):
+        if not kwargs.get('time_limit'):
+            time_limit = int((datetime.datetime.now()).strftime('%s'))
+        else:
+            time_limit = kwargs.get('time_limit')
+
+        while last_time > time_limit:
             if count < maxCount:
                 realCount = count
             else:
