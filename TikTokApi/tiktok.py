@@ -1207,20 +1207,31 @@ class TikTokApi:
             maxCount,
             did,
         ) = self.__process_kwargs__(kwargs)
-        r = requests.get(
-            "https://tiktok.com/@{}?lang=en".format(quote(username)),
-            headers={
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-                "authority": "www.tiktok.com",
-                "path": "/@{}".format(quote(username)),
-                "Accept-Encoding": "gzip, deflate",
-                "Connection": "keep-alive",
-                "Host": "www.tiktok.com",
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36",
-            },
-            proxies=self.__format_proxy(kwargs.get("proxy", None)),
-            cookies=self.get_cookies(**kwargs),
-        )
+
+        done = False
+        n = 1
+        while not done:
+            try:
+                r = requests.get(
+                    "https://tiktok.com/@{}?lang=en".format(quote(username)),
+                    headers={
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                        "authority": "www.tiktok.com",
+                        "path": "/@{}".format(quote(username)),
+                        "Accept-Encoding": "gzip, deflate",
+                        "Connection": "keep-alive",
+                        "Host": "www.tiktok.com",
+                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36",
+                    },
+                    proxies=self.__format_proxy(kwargs.get("proxy", None)),
+                    cookies=self.get_cookies(**kwargs),
+                )
+                done = True
+            except:
+                if n == 50:
+                    print('retry 50!')
+                n = n + 1
+                sleep(1)
 
         t = r.text
 
