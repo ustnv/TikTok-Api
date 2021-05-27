@@ -265,40 +265,44 @@ class TikTokApi:
                     },
                     cookies=self.get_cookies(**kwargs),
                     proxies=self.__format_proxy(proxy),
-                    timeout=3
+                    timeout=5
                 )
-                done = True
             except:
                 if n == 50:
                     print('retry 50!')
                 n = n + 1
-                sleep(1)
+                sleep(2)
 
-        try:
-            json = r.json()
-            if json.get("type") == "verify":
-                logging.error(
-                    "Tiktok wants to display a catcha. Response is:\n" + r.text
-                )
-                logging.error(self.get_cookies(**kwargs))
-                raise TikTokCaptchaError()
-            if json.get("statusCode", 200) == 10201:
-                # Invalid Entity
-                raise TikTokNotFoundError(
-                    "TikTok returned a response indicating the entity is invalid"
-                )
-            return r.json()
-        except ValueError as e:
-            text = r.text
-            logging.error("TikTok response: " + text)
-            if len(text) == 0:
-                raise EmptyResponseError(
-                    "Empty response from Tiktok to " + url
-                ) from None
-            else:
-                logging.error("Converting response to JSON failed")
-                logging.error(e)
-                raise JSONDecodeFailure() from e
+            try:
+                json = r.json()
+                if json.get("type") == "verify":
+                    logging.error(
+                        "Tiktok wants to display a catcha. Response is:\n" + r.text
+                    )
+                    logging.error(self.get_cookies(**kwargs))
+                    sleep(30)
+                    #raise TikTokCaptchaError()
+                elif json.get("statusCode", 200) == 10201:
+                    # Invalid Entity
+                    raise TikTokNotFoundError(
+                        "TikTok returned a response indicating the entity is invalid"
+                    )
+                else:
+                    return r.json()
+            except ValueError as e:
+                text = r.text
+                logging.error("TikTok response: " + text)
+                if len(text) == 0:
+                    raise EmptyResponseError(
+                        "Empty response from Tiktok to " + url
+                    ) from None
+                else:
+                    logging.error("Converting response to JSON failed")
+                    logging.error(e)
+                    raise JSONDecodeFailure() from e
+
+
+
 
     def get_cookies(self, **kwargs):
         """Extracts cookies from the kwargs passed to the function for get_data"""
