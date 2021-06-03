@@ -8,6 +8,8 @@ from playwright.sync_api import sync_playwright
 import string
 import logging
 import os
+import datetime
+from time import sleep
 from .utilities import update_messager
 from .exceptions import *
 
@@ -241,7 +243,7 @@ class TikTokApi:
 
         h = requests.head(
             url,
-            headers= {
+            headers={
                 "x-secsdk-csrf-version": "1.2.5",
                 "x-secsdk-csrf-request": "1"
             },
@@ -251,57 +253,70 @@ class TikTokApi:
         csrf_token = h.headers["X-Ware-Csrf-Token"].split(",")[1]
         kwargs["csrf_session_id"] = csrf_session_id
 
-        r = requests.get(
-            url,
-            headers={
-                "authority": "m.tiktok.com",
-                "method": "GET",
-                "path": url.split("tiktok.com")[1],
-                "scheme": "https",
-                "accept": "application/json, text/plain, */*",
-                "accept-encoding": "gzip, deflate, br",
-                "accept-language": "en-US,en;q=0.9",
-                "origin": referrer,
-                "referer": referrer,
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "same-site",
-                "sec-gpc": "1",
-                "user-agent": userAgent,
-                "x-secsdk-csrf-token": csrf_token
-            },
-            cookies=self.get_cookies(**kwargs),
-            proxies=self.__format_proxy(proxy),
-            **self.requests_extra_kwargs,
-        )
-        try:
-            json = r.json()
-            if (
-                json.get("type") == "verify"
-                or json.get("verifyConfig", {}).get("type", "") == "verify"
-            ):
-                logging.error(
-                    "Tiktok wants to display a catcha. Response is:\n" + r.text
+        done = False
+        n = 1
+        while not done:
+            try:
+                r = requests.get(
+                    url,
+                    headers={
+                        "authority": "m.tiktok.com",
+                        "method": "GET",
+                        "path": url.split("tiktok.com")[1],
+                        "scheme": "https",
+                        "accept": "application/json, text/plain, */*",
+                        "accept-encoding": "gzip, deflate, br",
+                        "accept-language": "en-US,en;q=0.9",
+                        "origin": referrer,
+                        "referer": referrer,
+                        "sec-fetch-dest": "empty",
+                        "sec-fetch-mode": "cors",
+                        "sec-fetch-site": "same-site",
+                        "sec-gpc": "1",
+                        "user-agent": userAgent,
+                        "x-secsdk-csrf-token": csrf_token
+                    },
+                    cookies=self.get_cookies(**kwargs),
+                    proxies=self.__format_proxy(proxy),
+                    **self.requests_extra_kwargs,
                 )
-                logging.error(self.get_cookies(**kwargs))
-                raise TikTokCaptchaError()
-            if json.get("statusCode", 200) == 10201:
-                # Invalid Entity
-                raise TikTokNotFoundError(
-                    "TikTok returned a response indicating the entity is invalid"
-                )
-            return r.json()
-        except ValueError as e:
-            text = r.text
-            logging.error("TikTok response: " + text)
-            if len(text) == 0:
-                raise EmptyResponseError(
-                    "Empty response from Tiktok to " + url
-                ) from None
-            else:
-                logging.error("Converting response to JSON failed")
-                logging.error(e)
-                raise JSONDecodeFailure() from e
+            except:
+                r = None
+                if n == 50:
+                    print('retry 50!')
+                n = n + 1
+                sleep(2)
+
+            if r:
+                try:
+                    json = r.json()
+                    if (
+                        json.get("type") == "verify"
+                        or json.get("verifyConfig", {}).get("type", "") == "verify"
+                    ):
+                        logging.error(
+                            "Tiktok wants to display a catcha."
+                        )
+                        logging.error(self.get_cookies(**kwargs))
+                        #raise TikTokCaptchaError()
+                    elif json.get("statusCode", 200) == 10201:
+                        # Invalid Entity
+                        raise TikTokNotFoundError(
+                            "TikTok returned a response indicating the entity is invalid"
+                        )
+                    else:
+                        return r.json()
+                except ValueError as e:
+                    text = r.text
+                    logging.error("TikTok response: " + text)
+                    if len(text) == 0:
+                        raise EmptyResponseError(
+                            "Empty response from Tiktok to " + url
+                        ) from None
+                    else:
+                        logging.error("Converting response to JSON failed")
+                        logging.error(e)
+                        raise JSONDecodeFailure() from e
 
     def get_cookies(self, **kwargs):
         """Extracts cookies from the kwargs passed to the function for get_data"""
@@ -551,8 +566,14 @@ class TikTokApi:
 
         response = []
         first = True
+        last_time = int((datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%s'))
 
-        while len(response) < count:
+        if not kwargs.get('time_limit'):
+            time_limit = int((datetime.datetime.now()).strftime('%s'))
+        else:
+            time_limit = kwargs.get('time_limit')
+
+        while last_time > time_limit:
             if count < maxCount:
                 realCount = count
             else:
@@ -586,6 +607,8 @@ class TikTokApi:
 
             realCount = count - len(response)
             cursor = res["cursor"]
+            if response:
+                last_time = response[-1].get('createTime')
 
             first = False
 
@@ -1634,7 +1657,7 @@ class TikTokApi:
             raise Exception(
                 "Retrieving the user secUid failed. Likely due to TikTok wanting captcha validation. Try to use a proxy."
             )
-
+    
     @staticmethod
     def generate_did():
         """Generates a valid did for other methods. Pass this as the custom_did field to download videos"""
