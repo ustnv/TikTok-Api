@@ -278,6 +278,7 @@ class TikTokApi:
                     },
                     cookies=self.get_cookies(**kwargs),
                     proxies=self.__format_proxy(proxy),
+                    timeout=5,
                     **self.requests_extra_kwargs,
                 )
             except:
