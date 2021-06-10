@@ -298,7 +298,7 @@ class TikTokApi:
                         or json.get("verifyConfig", {}).get("type", "") == "verify"
                     ):
                         logging.error(
-                            "Tiktok wants to display a catcha."
+                            "captcha"
                         )
                         #logging.error(self.get_cookies(**kwargs))
                         sleep(2)
