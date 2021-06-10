@@ -285,8 +285,8 @@ class TikTokApi:
                 )
             except:
                 r = None
-                if n == 50:
-                    print('retry 50!')
+                if not (n % 10):
+                    logging.error('retry ' + str(n))
                 n = n + 1
                 sleep(2)
 
