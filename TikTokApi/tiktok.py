@@ -296,9 +296,10 @@ class TikTokApi:
                         or json.get("verifyConfig", {}).get("type", "") == "verify"
                     ):
                         logging.error(
-                            "Tiktok wants to display a catcha. Response is:\n" + r.text
+                            "Tiktok wants to display a catcha."
                         )
                         logging.error(self.get_cookies(**kwargs))
+                        sleep(30)
                         #raise TikTokCaptchaError()
                     elif json.get("statusCode", 200) == 10201:
                         # Invalid Entity
