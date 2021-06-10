@@ -241,6 +241,18 @@ class TikTokApi:
         query = {"verifyFp": verify_fp, "did": did, "_signature": signature}
         url = "{}&{}".format(kwargs["url"], urlencode(query))
 
+        h = requests.head(
+            url,
+            headers={
+                "x-secsdk-csrf-version": "1.2.5",
+                "x-secsdk-csrf-request": "1"
+            },
+            proxies=self.__format_proxy(proxy),
+            **self.requests_extra_kwargs)
+        csrf_session_id = h.cookies["csrf_session_id"]
+        csrf_token = h.headers["X-Ware-Csrf-Token"].split(",")[1]
+        kwargs["csrf_session_id"] = csrf_session_id
+
         done = False
         n = 1
         while not done:
@@ -262,9 +274,7 @@ class TikTokApi:
                         "sec-fetch-site": "same-site",
                         "sec-gpc": "1",
                         "user-agent": userAgent,
-                        "x-secsdk-csrf-token": "".join(
-                            random.choice(string.ascii_uppercase + string.ascii_lowercase)
-                            for i in range(92))
+                        "x-secsdk-csrf-token": csrf_token
                     },
                     cookies=self.get_cookies(**kwargs),
                     proxies=self.__format_proxy(proxy),
@@ -326,6 +336,7 @@ class TikTokApi:
             return {
                 "tt_webid": did,
                 "tt_webid_v2": did,
+                "csrf_session_id": kwargs.get("csrf_session_id"),
                 "tt_csrf_token": "".join(
                     random.choice(string.ascii_uppercase + string.ascii_lowercase)
                     for i in range(16)
@@ -336,6 +347,7 @@ class TikTokApi:
             return {
                 "tt_webid": did,
                 "tt_webid_v2": did,
+                "csrf_session_id": kwargs.get("csrf_session_id"),
                 "tt_csrf_token": "".join(
                     random.choice(string.ascii_uppercase + string.ascii_lowercase)
                     for i in range(16)
