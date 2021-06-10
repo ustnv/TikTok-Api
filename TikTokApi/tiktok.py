@@ -254,6 +254,7 @@ class TikTokApi:
                         "x-secsdk-csrf-request": "1"
                     },
                     proxies=self.__format_proxy(proxy),
+                    timeout=5,
                     **self.requests_extra_kwargs)
                 csrf_session_id = h.cookies["csrf_session_id"]
                 csrf_token = h.headers["X-Ware-Csrf-Token"].split(",")[1]
