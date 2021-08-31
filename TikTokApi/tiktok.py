@@ -241,8 +241,6 @@ class TikTokApi:
         query = {"verifyFp": verify_fp, "did": did, "_signature": signature}
         url = "{}&{}".format(kwargs["url"], urlencode(query))
 
-
-
         done = False
         n = 1
         while not done:
@@ -290,6 +288,9 @@ class TikTokApi:
                     logging.error('retry ' + str(n))
                 n = n + 1
                 sleep(2)
+
+                if n > 100:
+                    done = True
 
             if r:
                 try:
@@ -605,6 +606,9 @@ class TikTokApi:
             if "itemList" in res.keys():
                 for t in res["itemList"]:
                     response.append(t)
+
+            if res is None:
+                logging.info("Result is None.")
 
             if (not "itemList" in res.keys() or not res["hasMore"]) and not first:
                 logging.info("TikTok isn't sending more TikToks beyond this point.")
