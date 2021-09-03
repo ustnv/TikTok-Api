@@ -284,10 +284,11 @@ class TikTokApi:
                     timeout=5,
                     **self.requests_extra_kwargs,
                 )
-            except:
+            except Exception as e:
                 r = None
                 if not (n % 10):
                     logging.error('retry ' + str(n))
+                    logging.error(e.__class__.__name__)
                 n = n + 1
                 time.sleep(2)
 
