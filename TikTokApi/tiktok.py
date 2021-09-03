@@ -605,12 +605,13 @@ class TikTokApi:
 
             res = self.get_data(url=api_url, **kwargs)
 
+            if res is None:
+                logging.info("Result is None.")
+                return []
+
             if "itemList" in res.keys():
                 for t in res.get("itemList", []):
                     response.append(t)
-
-            if res is None:
-                logging.info("Result is None.")
 
             if (not "itemList" in res.keys() or not res["hasMore"]) and not first:
                 logging.info("TikTok isn't sending more TikToks beyond this point.")
