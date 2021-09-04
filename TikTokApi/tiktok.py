@@ -318,7 +318,9 @@ class TikTokApi:
                 except ValueError as e:
                     text = r.text
                     logging.error("TikTok response: " + text)
+                    """
                     if len(text) == 0:
+                        
                         raise EmptyResponseError(
                             "Empty response from Tiktok to " + url
                         ) from None
@@ -326,6 +328,7 @@ class TikTokApi:
                         logging.error("Converting response to JSON failed")
                         logging.error(e)
                         raise JSONDecodeFailure() from e
+                    """
 
     def get_cookies(self, **kwargs):
         """Extracts cookies from the kwargs passed to the function for get_data"""
