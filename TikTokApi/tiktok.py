@@ -5,13 +5,12 @@ import random
 import string
 import time
 from urllib.parse import quote, urlencode
-
+import datetime
 import requests
 from playwright.sync_api import sync_playwright
 
 from .exceptions import *
 from .utilities import update_messager
-
 
 os.environ["no_proxy"] = "127.0.0.1,localhost"
 
@@ -100,8 +99,8 @@ class TikTokApi:
         * custom_device_id: A TikTok parameter needed to download videos, optional
             The code generates these and handles these pretty well itself, however
             for some things such as video download you will need to set a consistent
-            one of these. All the methods take this as a optional parameter, however 
-            it's cleaner code to store this at the instance level. You can override 
+            one of these. All the methods take this as a optional parameter, however
+            it's cleaner code to store this at the instance level. You can override
             this at the specific methods.
 
         * generate_static_device_id: A parameter that generates a custom_device_id at the instance level
@@ -110,7 +109,7 @@ class TikTokApi:
 
         * custom_verifyFp: A TikTok parameter needed to work most of the time, optional
             To get this parameter look at [this video](https://youtu.be/zwLmLfVI-VQ?t=117)
-            I recommend watching the entire thing, as it will help setup this package. All 
+            I recommend watching the entire thing, as it will help setup this package. All
             the methods take this as a optional parameter, however it's cleaner code
             to store this at the instance level. You can override this at the specific
             methods.
@@ -245,73 +244,85 @@ class TikTokApi:
 
         if not kwargs.get("send_tt_params", False):
             tt_params = None
-            
 
         query = {"verifyFp": verify_fp, "device_id": device_id, "_signature": signature}
         url = "{}&{}".format(kwargs["url"], urlencode(query))
 
-        h = requests.head(
-            url,
-            headers={"x-secsdk-csrf-version": "1.2.5", "x-secsdk-csrf-request": "1"},
-            proxies=self.__format_proxy(proxy),
-            **self.requests_extra_kwargs,
-        )
-        csrf_session_id = h.cookies["csrf_session_id"]
-        csrf_token = h.headers["X-Ware-Csrf-Token"].split(",")[1]
-        kwargs["csrf_session_id"] = csrf_session_id
+        done = False
+        n = 1
+        while not done:
+            try:
+                h = requests.head(
+                    url,
+                    headers={"x-secsdk-csrf-version": "1.2.5", "x-secsdk-csrf-request": "1"},
+                    proxies=self.__format_proxy(proxy),
+                    timeout=5,
+                    **self.requests_extra_kwargs,
+                )
+                csrf_session_id = h.cookies["csrf_session_id"]
+                csrf_token = h.headers["X-Ware-Csrf-Token"].split(",")[1]
+                kwargs["csrf_session_id"] = csrf_session_id
 
-        r = requests.get(
-            url,
-            headers={
-                "authority": "m.tiktok.com",
-                "method": "GET",
-                "path": url.split("tiktok.com")[1],
-                "scheme": "https",
-                "accept": "application/json, text/plain, */*",
-                "accept-encoding": "gzip, deflate, br",
-                "accept-language": "en-US,en;q=0.9",
-                "origin": referrer,
-                "referer": referrer,
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "same-site",
-                "sec-gpc": "1",
-                "user-agent": userAgent,
-                "x-secsdk-csrf-token": csrf_token,
-                "x-tt-params": tt_params
-            },
-            cookies=self.get_cookies(**kwargs),
-            proxies=self.__format_proxy(proxy),
-            **self.requests_extra_kwargs,
-        )
-        try:
-            json = r.json()
-            if (
-                json.get("type") == "verify"
-                or json.get("verifyConfig", {}).get("type", "") == "verify"
-            ):
-                logging.error(
-                    "Tiktok wants to display a catcha. Response is:\n" + r.text
+                r = requests.get(
+                    url,
+                    headers={
+                        "authority": "m.tiktok.com",
+                        "method": "GET",
+                        "path": url.split("tiktok.com")[1],
+                        "scheme": "https",
+                        "accept": "application/json, text/plain, */*",
+                        "accept-encoding": "gzip, deflate, br",
+                        "accept-language": "en-US,en;q=0.9",
+                        "origin": referrer,
+                        "referer": referrer,
+                        "sec-fetch-dest": "empty",
+                        "sec-fetch-mode": "cors",
+                        "sec-fetch-site": "same-site",
+                        "sec-gpc": "1",
+                        "user-agent": userAgent,
+                        "x-secsdk-csrf-token": csrf_token,
+                        "x-tt-params": tt_params
+                    },
+                    cookies=self.get_cookies(**kwargs),
+                    proxies=self.__format_proxy(proxy),
+                    timeout=5,
+                    **self.requests_extra_kwargs,
                 )
-                logging.error(self.get_cookies(**kwargs))
-                raise TikTokCaptchaError()
-            if json.get("statusCode", 200) == 10201:
-                # Invalid Entity
-                raise TikTokNotFoundError(
-                    "TikTok returned a response indicating the entity is invalid"
-                )
-            return r.json()
-        except ValueError as e:
-            text = r.text
-            logging.error("TikTok response: " + text)
-            if len(text) == 0:
-                raise EmptyResponseError(
-                    "Empty response from Tiktok to " + url
-                ) from None
-            else:
-                logging.error("Converting response to JSON failed")
-                logging.error(e)
-                raise JSONDecodeFailure() from e
+            except Exception as e:
+                r = None
+                if not (n % 10):
+                    logging.error('retry ' + str(n))
+                    logging.error(e.__class__.__name__)
+                n = n + 1
+                time.sleep(2)
+
+                if n > 100:
+                    done = True
+
+            if r:
+                try:
+                    json = r.json()
+                    if (
+                            json.get("type") == "verify"
+                            or json.get("verifyConfig", {}).get("type", "") == "verify"
+                    ):
+                        logging.error(
+                            "Tiktok wants to display a catcha."
+                        )
+                        # logging.error(self.get_cookies(**kwargs))
+                        time.sleep(2)
+                        # raise TikTokCaptchaError()
+                    elif json.get("statusCode", 200) == 10201:
+                        # Invalid Entity
+                        raise TikTokNotFoundError(
+                            "TikTok returned a response indicating the entity is invalid"
+                        )
+                    else:
+                        return r.json()
+                except ValueError as e:
+                    text = r.text
+                    logging.error("TikTok response: " + text)
+                    time.sleep(2)
 
     def get_cookies(self, **kwargs):
         """Extracts cookies from the kwargs passed to the function for get_data"""
@@ -563,7 +574,12 @@ class TikTokApi:
         response = []
         first = True
 
-        while len(response) < count:
+        last_time = int((datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%s'))
+        if not kwargs.get('time_limit'):
+            time_limit = int((datetime.datetime.now()).strftime('%s'))
+        else:
+            time_limit = kwargs.get('time_limit')
+        while last_time > time_limit:
             if count < maxCount:
                 realCount = count
             else:
@@ -587,16 +603,22 @@ class TikTokApi:
 
             res = self.get_data(url=api_url, send_tt_params=True, **kwargs)
 
+            if res is None:
+                logging.info("Result is None.")
+                return []
+
             if "itemList" in res.keys():
                 for t in res.get("itemList", []):
                     response.append(t)
 
-            if not res.get("hasMore", False) and not first:
+            if (not "itemList" in res.keys() or not res.get("hasMore")) and not first:
                 logging.info("TikTok isn't sending more TikToks beyond this point.")
                 return response
 
             realCount = count - len(response)
             cursor = res["cursor"]
+            if response:
+                last_time = response[-1].get('createTime')
 
             first = False
 
@@ -657,16 +679,16 @@ class TikTokApi:
         kwargs["custom_device_id"] = device_id
 
         api_url = (
-            BASE_URL + "api/post/item_list/?{}&count={}&id={}&type=1&secUid={}"
-            "&cursor={}&sourceType=8&appId=1233&region={}&language={}".format(
-                self.__add_url_params__(),
-                page_size,
-                str(userID),
-                str(secUID),
-                cursor,
-                region,
-                language,
-            )
+                BASE_URL + "api/post/item_list/?{}&count={}&id={}&type=1&secUid={}"
+                           "&cursor={}&sourceType=8&appId=1233&region={}&language={}".format(
+            self.__add_url_params__(),
+            page_size,
+            str(userID),
+            str(secUID),
+            cursor,
+            region,
+            language,
+        )
         )
 
         return self.get_data(url=api_url, send_tt_params=True, **kwargs)
@@ -1274,7 +1296,7 @@ class TikTokApi:
         return user
 
     def get_suggested_users_by_id(
-        self, userId="6745191554350760966", count=30, **kwargs
+            self, userId="6745191554350760966", count=30, **kwargs
     ) -> list:
         """Returns suggested users given a different TikTok user.
 
@@ -1307,7 +1329,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_users_by_id_crawler(
-        self, count=30, startingId="6745191554350760966", **kwargs
+            self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for listing of all user objects it can find.
 
@@ -1342,7 +1364,7 @@ class TikTokApi:
         return users[:count]
 
     def get_suggested_hashtags_by_id(
-        self, count=30, userId="6745191554350760966", **kwargs
+            self, count=30, userId="6745191554350760966", **kwargs
     ) -> list:
         """Returns suggested hashtags given a TikTok user.
 
@@ -1373,7 +1395,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_hashtags_by_id_crawler(
-        self, count=30, startingId="6745191554350760966", **kwargs
+            self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for as many hashtags as it can find.
 
@@ -1406,7 +1428,7 @@ class TikTokApi:
         return hashtags[:count]
 
     def get_suggested_music_by_id(
-        self, count=30, userId="6745191554350760966", **kwargs
+            self, count=30, userId="6745191554350760966", **kwargs
     ) -> list:
         """Returns suggested music given a TikTok user.
 
@@ -1442,7 +1464,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_music_id_crawler(
-        self, count=30, startingId="6745191554350760966", **kwargs
+            self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for hashtags.
 
