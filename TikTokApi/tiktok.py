@@ -12,6 +12,7 @@ from playwright.sync_api import sync_playwright
 from .exceptions import *
 from .utilities import update_messager
 
+
 os.environ["no_proxy"] = "127.0.0.1,localhost"
 
 BASE_URL = "https://m.tiktok.com/"
@@ -51,9 +52,9 @@ class TikTokApi:
             global BASE_URL
             BASE_URL = "https://t.tiktok.com/"
         if kwargs.get("use_selenium", False):
-            from .browser_selenium import browser
+            from .browser_utilities.browser_selenium import browser
         else:
-            from .browser import browser
+            from .browser_utilities.browser import browser
 
         if kwargs.get("generate_static_device_id", False):
             self.custom_device_id = "".join(random.choice(string.digits) for num in range(19))
@@ -230,9 +231,11 @@ class TikTokApi:
             verifyFp = kwargs.get("custom_verifyFp")
 
         tt_params = None
+        send_tt_params = kwargs.get("send_tt_params", False)
+
         if self.signer_url is None:
             kwargs["custom_verifyFp"] = verifyFp
-            verify_fp, device_id, signature, tt_params = self.browser.sign_url(**kwargs)
+            verify_fp, device_id, signature, tt_params = self.browser.sign_url(calc_tt_params=send_tt_params, **kwargs)
             userAgent = self.browser.userAgent
             referrer = self.browser.referrer
         else:
@@ -244,6 +247,7 @@ class TikTokApi:
 
         if not kwargs.get("send_tt_params", False):
             tt_params = None
+            
 
         query = {"verifyFp": verify_fp, "device_id": device_id, "_signature": signature}
         url = "{}&{}".format(kwargs["url"], urlencode(query))
@@ -317,6 +321,11 @@ class TikTokApi:
                         raise TikTokNotFoundError(
                             "TikTok returned a response indicating the entity is invalid"
                         )
+                    elif json.get("statusCode", 200) == 10219:
+                        # not available in this region
+                        raise TikTokNotAvailableError(
+                            "Content not available for this region"
+                        )
                     else:
                         return r.json()
                 except ValueError as e:
@@ -370,7 +379,7 @@ class TikTokApi:
         ) = self.__process_kwargs__(kwargs)
         kwargs["custom_device_id"] = device_id
         if self.signer_url is None:
-            verify_fp, device_id, signature = self.browser.sign_url(**kwargs)
+            verify_fp, device_id, signature, _ = self.browser.sign_url(calc_tt_params=False, **kwargs)
             userAgent = self.browser.userAgent
             referrer = self.browser.referrer
         else:
@@ -579,6 +588,7 @@ class TikTokApi:
             time_limit = int((datetime.datetime.now()).strftime('%s'))
         else:
             time_limit = kwargs.get('time_limit')
+
         while last_time > time_limit:
             if count < maxCount:
                 realCount = count
@@ -679,16 +689,16 @@ class TikTokApi:
         kwargs["custom_device_id"] = device_id
 
         api_url = (
-                BASE_URL + "api/post/item_list/?{}&count={}&id={}&type=1&secUid={}"
-                           "&cursor={}&sourceType=8&appId=1233&region={}&language={}".format(
-            self.__add_url_params__(),
-            page_size,
-            str(userID),
-            str(secUID),
-            cursor,
-            region,
-            language,
-        )
+            BASE_URL + "api/post/item_list/?{}&count={}&id={}&type=1&secUid={}"
+            "&cursor={}&sourceType=8&appId=1233&region={}&language={}".format(
+                self.__add_url_params__(),
+                page_size,
+                str(userID),
+                str(secUID),
+                cursor,
+                region,
+                language,
+            )
         )
 
         return self.get_data(url=api_url, send_tt_params=True, **kwargs)
@@ -892,6 +902,39 @@ class TikTokApi:
 
         return response[:count]
 
+
+    def by_sound_page(self, id, page_size=30, cursor=0, **kwargs) -> dict:
+        """Returns a page of tiktoks with a specific sound.
+
+        Parameters
+        ----------
+        id: The sound id to search by
+            Note: Can be found in the URL of the sound specific page or with other methods.
+        cursor: offset for pagination
+        page_size: The number of posts to return
+        """
+        (
+            region,
+            language,
+            proxy,
+            maxCount,
+            device_id,
+        ) = self.__process_kwargs__(kwargs)
+        kwargs["custom_device_id"] = device_id
+
+        query = {
+            "musicID": str(id),
+            "count": str(page_size),
+            "cursor": cursor,
+            "language": language,
+        }
+        api_url = "{}api/music/item_list/?{}&{}".format(
+            BASE_URL, self.__add_url_params__(), urlencode(query)
+        )
+
+        return self.get_data(url=api_url, send_tt_params=True, **kwargs)
+
+
     def get_music_object(self, id, **kwargs) -> dict:
         """Returns a music object for a specific sound id.
 
@@ -956,6 +999,10 @@ class TikTokApi:
             BASE_URL, id, self.__add_url_params__()
         )
         res = self.get_data(url=api_url, **kwargs)
+
+        if res.get("statusCode", 200) == 10203:
+            raise TikTokNotFoundError()
+
         return res["musicInfo"]
 
     def by_hashtag(self, hashtag, count=30, offset=0, **kwargs) -> dict:
@@ -1296,7 +1343,7 @@ class TikTokApi:
         return user
 
     def get_suggested_users_by_id(
-            self, userId="6745191554350760966", count=30, **kwargs
+        self, userId="6745191554350760966", count=30, **kwargs
     ) -> list:
         """Returns suggested users given a different TikTok user.
 
@@ -1329,7 +1376,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_users_by_id_crawler(
-            self, count=30, startingId="6745191554350760966", **kwargs
+        self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for listing of all user objects it can find.
 
@@ -1364,7 +1411,7 @@ class TikTokApi:
         return users[:count]
 
     def get_suggested_hashtags_by_id(
-            self, count=30, userId="6745191554350760966", **kwargs
+        self, count=30, userId="6745191554350760966", **kwargs
     ) -> list:
         """Returns suggested hashtags given a TikTok user.
 
@@ -1395,7 +1442,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_hashtags_by_id_crawler(
-            self, count=30, startingId="6745191554350760966", **kwargs
+        self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for as many hashtags as it can find.
 
@@ -1428,7 +1475,7 @@ class TikTokApi:
         return hashtags[:count]
 
     def get_suggested_music_by_id(
-            self, count=30, userId="6745191554350760966", **kwargs
+        self, count=30, userId="6745191554350760966", **kwargs
     ) -> list:
         """Returns suggested music given a TikTok user.
 
@@ -1464,7 +1511,7 @@ class TikTokApi:
         return res[:count]
 
     def get_suggested_music_id_crawler(
-            self, count=30, startingId="6745191554350760966", **kwargs
+        self, count=30, startingId="6745191554350760966", **kwargs
     ) -> list:
         """Crawls for hashtags.
 
