@@ -188,18 +188,18 @@ class TikTokApi:
             query = {"url": url, "custom_device_id": custom_device_id, "verifyFp": verifyFp}
         else:
             query = {"url": url, "verifyFp": verifyFp}
-        data = requests.get(
-            self.signer_url + "?{}".format(urlencode(query)),
-            **self.requests_extra_kwargs,
-        )
-        parsed_data = data.json()
+
+        data = requests.request("POST", self.signer_url, data=url)
+
+        parsed_data = data.json()['data']
 
         return (
-            parsed_data["verifyFp"],
-            parsed_data["device_id"],
-            parsed_data["_signature"],
-            parsed_data["userAgent"],
-            parsed_data["referrer"],
+            parsed_data.get("verify_fp"),
+            parsed_data.get("device_id"),  # device_id
+            parsed_data.get("signature"),
+            parsed_data.get("navigator").get("user_agent"),
+            parsed_data.get("referrer"),
+            parsed_data.get("x-tt-params")
         )
 
     def get_data(self, **kwargs) -> dict:
@@ -233,28 +233,28 @@ class TikTokApi:
         tt_params = None
         send_tt_params = kwargs.get("send_tt_params", False)
 
+        if self.signer_url is None:
+            kwargs["custom_verifyFp"] = verifyFp
+            verify_fp, device_id, signature, tt_params = self.browser.sign_url(calc_tt_params=send_tt_params, **kwargs)
+            userAgent = self.browser.userAgent
+            referrer = self.browser.referrer
+        else:
+            verify_fp, device_id, signature, userAgent, referrer, tt_params = self.external_signer(
+                kwargs["url"],
+                custom_device_id=kwargs.get("custom_device_id"),
+                verifyFp=kwargs.get("custom_verifyFp", verifyFp),
+            )
+
+        if not kwargs.get("send_tt_params", False):
+            tt_params = None
+
+        query = {"verifyFp": verify_fp, "_signature": signature}
+        url = "{}&{}".format(kwargs["url"], urlencode(query))
+
         done = False
         n = 1
         while not done:
             try:
-
-                if self.signer_url is None:
-                    kwargs["custom_verifyFp"] = verifyFp
-                    verify_fp, device_id, signature, tt_params = self.browser.sign_url(calc_tt_params=send_tt_params, **kwargs)
-                    userAgent = self.browser.userAgent
-                    referrer = self.browser.referrer
-                else:
-                    verify_fp, device_id, signature, userAgent, referrer = self.external_signer(
-                        kwargs["url"],
-                        custom_device_id=kwargs.get("custom_device_id"),
-                        verifyFp=kwargs.get("custom_verifyFp", verifyFp),
-                    )
-
-                if not kwargs.get("send_tt_params", False):
-                    tt_params = None
-
-                query = {"verifyFp": verify_fp, "device_id": device_id, "_signature": signature}
-                url = "{}&{}".format(kwargs["url"], urlencode(query))
 
                 h = requests.head(
                     url,
