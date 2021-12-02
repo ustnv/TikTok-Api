@@ -3,6 +3,7 @@ import logging
 import os
 import random
 import string
+import re
 import time
 from urllib.parse import quote, urlencode
 import datetime
@@ -1306,41 +1307,64 @@ class TikTokApi:
             maxCount,
             device_id,
         ) = self.__process_kwargs__(kwargs)
-        r = requests.get(
-            "https://tiktok.com/@{}?lang=en".format(quote(username)),
-            headers={
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-                "authority": "www.tiktok.com",
-                "path": "/@{}".format(quote(username)),
-                "Accept-Encoding": "gzip, deflate",
-                "Connection": "keep-alive",
-                "Host": "www.tiktok.com",
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36",
-            },
-            proxies=self.__format_proxy(kwargs.get("proxy", None)),
-            cookies=self.get_cookies(**kwargs),
-            **self.requests_extra_kwargs,
-        )
 
-        t = r.text
+        done = False
+        n = 1
+        while not done:
+            try:
+                r = requests.get(
+                    "https://tiktok.com/@{}?lang=en".format(quote(username)),
+                    headers={
+                        'authority': 'www.tiktok.com',
+                        'pragma': 'no-cache',
+                        'cache-control': 'no-cache',
+                        'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="96", "Google Chrome";v="96"',
+                        'sec-ch-ua-mobile': '?0',
+                        'sec-ch-ua-platform': '"macOS"',
+                        'upgrade-insecure-requests': '1',
+                        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36',
+                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                        'sec-fetch-site': 'none',
+                        'sec-fetch-mode': 'navigate',
+                        'sec-fetch-user': '?1',
+                        'sec-fetch-dest': 'document',
+                        'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+                        'cookie': 'tt_csrf_token=AMMycXihaTqIKrrg-htB34U4; csrf_session_id=c116c11802204a77967b41a6fc0f1b19; others_view_mode=grid; _ga=GA1.2.1901867119.1613673590; s_v_web_id=verify_klew60d8_9AqnIlOI_U1J0_4ZVq_8VqA_ha7MCoYjfyhx; webapp_tiktok_lang=ru-RU; cookie-consent={%22ga%22:true%2C%22af%22:true%2C%22fbp%22:true%2C%22lip%22:true%2C%22version%22:%22v2%22}; _abck=607B2F455A80BACB85A48E704EB7D1D3~-1~YAAQr4BtaP5JTlh6AQAA7RfqcAa0Lb9ldLAShw5G7dlQCoc+oWOEi5gJhr0/hmYmyIRBxr7WAwKXRp4dfz5Rak5jKKEMAP7INgLAQNQHtuex+UKH1mRMr2CUzg3IgbJ8K9OVEiZazGFztcBQvTYVUFvWQgYyxmUedx6k6OiUrzXnJQYqd7/MnKfvTeZlOXkrDbw5RsxlZz52weuvft+0cuY/Yx48HaA3oMs1dWGhVoUCWGSWAbf2OfW2VlA4Rdv950J575Me1sEFKZqPHYDm8tKNDnLnmxYibX/5y69cgK4pgJQtFrJ9/9kmNTqqVn0tQnK4bgIcu9/AqRxobsBRZBD5+LCbUhmE8onA8hANC3YSZ9zIWW3/5Foln2s83LDMAyN7r2Cl~-1~-1~-1; custom_slardar_web_id=6893109346227652102; tta_attr_id=0.1628094277.6992611672481333250; tta_attr_id_mirror=0.1628094277.6992611672481333250; MONITOR_DEVICE_ID=05f922ec-82ec-4dd9-9e01-bf9acee80524; csrf_session_id=c116c11802204a77967b41a6fc0f1b19; __tea_sdk__user_unique_id=amp-xjmiB6bCXuuBU-AM7qicNA; d_ticket=283bad69c5f56d2f7dbb7fdd20ae84cd7735c; _gid=GA1.2.1643532504.1631000430; _gat_UA-143770054-3=1; _hjid=02f4385d-8c21-4044-85d7-8fe757694a44; from_way=paid; _fbp=fb.1.1631121449199.755379746; _gat_UA-143770054-2=1; MONITOR_WEB_ID=6893109346227652102; d_ticket_ads=065013a45c8232bed160ececa04299e57735c; tt_webid=6893109346227652102; custom_slardar_web_id=6893109346227652102; passport_csrf_token_default=f4f27d4d24acce4c11a85201393c906c; passport_csrf_token=f4f27d4d24acce4c11a85201393c906c; _tea_utm_cache_1988={%22utm_source%22:%22copy%22%2C%22utm_medium%22:%22ios%22%2C%22utm_campaign%22:%22client_share%22}; _gac_UA-143770054-3=1.1635258647.CjwKCAjwzt6LBhBeEiwAbPGOgUjnvfGH4C3VccXFN-rOnZf0Jhm1fs8Pfc-f7HlvotWEyvCnC-UZ3BoCkkQQAvD_BwE; sso_uid_tt_ads=f95be55730ab777018d12f402374be7d5dd904c705a0b23fc1e893e6c65bcf30; sso_uid_tt_ss_ads=f95be55730ab777018d12f402374be7d5dd904c705a0b23fc1e893e6c65bcf30; toutiao_sso_user_ads=b7244ba078684265838c494da42f6ada; toutiao_sso_user_ss_ads=b7244ba078684265838c494da42f6ada; sid_guard_ads=3612c93bbd16f6ad3a58958d6eebc763%7C1635854968%7C5184000%7CSat%2C+01-Jan-2022+12%3A09%3A28+GMT; uid_tt_ads=0e5a1f267058a6e54308618e0b07431b9501cacb39804ba619e3307b6a6377fe; uid_tt_ss_ads=0e5a1f267058a6e54308618e0b07431b9501cacb39804ba619e3307b6a6377fe; sid_tt_ads=3612c93bbd16f6ad3a58958d6eebc763; sessionid_ads=3612c93bbd16f6ad3a58958d6eebc763; sessionid_ss_ads=3612c93bbd16f6ad3a58958d6eebc763; sid_ucp_v1_ads=1.0.0-KDU2NjczMmI3YjkyMmEwZjBkOTYwYWNjYTVjMDQxZDdlY2JkNTljZTAKGAiCiL-a7-Klm2EQ-NSEjAYYzCQ4AUDrBxABGgNzZzEiIDM2MTJjOTNiYmQxNmY2YWQzYTU4OTU4ZDZlZWJjNzYz; ssid_ucp_v1_ads=1.0.0-KDU2NjczMmI3YjkyMmEwZjBkOTYwYWNjYTVjMDQxZDdlY2JkNTljZTAKGAiCiL-a7-Klm2EQ-NSEjAYYzCQ4AUDrBxABGgNzZzEiIDM2MTJjOTNiYmQxNmY2YWQzYTU4OTU4ZDZlZWJjNzYz; passport_auth_status=074f0d3345389673897657e5a6aa6123%2Cefcf14cb1c16ff07c7dca11ee5cd9da1; passport_auth_status_ss=074f0d3345389673897657e5a6aa6123%2Cefcf14cb1c16ff07c7dca11ee5cd9da1; _tea_utm_cache_3053={%22utm_source%22:%22copy%22%2C%22utm_medium%22:%22ios%22%2C%22utm_campaign%22:%22client_share%22}; odin_tt=a374ed3070c53ca3413586c2c0bb5ef253f6beb6e6be9d7fe0b9c27fe06199ad364da51243f26c95a20c299796c0d0ecd01e1b331817ea2199b649eb64e2f0ecf2435e3a123c680125208b9f08be5692; R6kq3TV7=ALFdCX19AQAAvXyX5whwKgQrgo1Yn20iIdUYAquONVo0cIFFdaC3FFc1p8bo|1|0|bf5fba148d2cf52f13c058ce8475d5a1de1c49c3; __tea_cookie_tokens_1988=%257B%2522web_id%2522%253A%2522%2522%252C%2522timestamp%2522%253A1638480330414%257D; ttwid=1%7C5vEvRhEh7U2QdW5ovKWCI7rD8TsuCIiwO7aus_CBDo0%7C1638480332%7Cab78c19a684b27f5a8598c4f2002f0d52824d2705325384a86b2ddaaed84c4a9; msToken=_FK0r_xdSNqNEbhqnuRiMHiADgx6tvZF-1-mn8iYyYhVtTvC9M52ukxjnCn1EZTjQCvKwI2CXWwnR65CIyC_7r2DlbPtO_C-sr-DIdGqTipeiqGqJZRxov0LaTJp_0ra6e3M9Z94; _abck=607B2F455A80BACB85A48E704EB7D1D3~-1~YAAQqoYe1KmqpNV4AQAAPKZA1gVCacIgaM0AkZbO+rHQgnh2ZjQvSBS9BPOdxpqNhxKEyjkvoysX9ytiBFanKnlOp+2m2kK67R/MxEIYJGuyzGgbJdujKlmadlluo+MLSULqGovvNAuzJZYtBrtcEU3IkYlHq5ucUH6VSP/Q/o+9fKME1GJjijr9PpQNpHtigKtK56GTows1jMAlMRhZdi6qier/KHXEZ91HftbIXFfOAWzpfSV5j2b//23rbk8eKAgT9cBW0TbXomWSANcs3nHc2mcR5I48g6FXjlvnfQAvlGEqqcRvO6H2yFSpHnxixpL5GiUAsMgFZQTdxzRHrnugIH9TLCodxPX7GBIjBT2KQY3ub/MMbhL8DW8h2j6ASDr4PyM=~0~-1~-1; ttwid=1|LufHN_ldtn8OCNkgk-nEN0bOtybGvMes1C-tNeHQNeo|1638480797|d4452095c346f44844dcd919fc90e28725c925dfbd8ebc88ffa2981fb03db6f8'
+                    },
+                    proxies=self.__format_proxy(kwargs.get("proxy", None)),
+                    timeout=10
+                )
 
-        try:
-            j_raw = self.__extract_tag_contents(r.text)
-        except IndexError:
-            if not t:
-                logging.error("Tiktok response is empty")
-            else:
-                logging.error("Tiktok response: \n " + t)
-            raise TikTokCaptchaError()
+                t = r.text
 
-        user = json.loads(j_raw)["props"]["pageProps"]
+                try:
+                    j_raw = self.__extract_tag_contents(r.text)
+                except IndexError:
+                    p = re.compile(r'authorId":"(.*?)","authorSecId":"(.*?)"', re.S)
+                    # m = p.findall(r.text)
+                    m = p.search(r.text)
+                    data = m.groups()
+                    user = {"userInfo": {"user": {"id": data[0], "secUid": data[1]}}}
+                    return user
 
-        if user["serverCode"] == 404:
-            raise TikTokNotFoundError(
-                "TikTok user with username {} does not exist".format(username)
-            )
+                user = json.loads(j_raw)["props"]["pageProps"]
 
-        return user
+                if user["serverCode"] == 404:
+                    raise TikTokNotFoundError(
+                        "TikTok user with username {} does not exist".format(username)
+                    )
+
+                return user
+            except Exception as e:
+                print(t)
+                r = None
+                logging.error('retry ' + str(n))
+                logging.error(e)
+                n = n + 1
+                time.sleep(2)
+
+                if n > 100:
+                    return
 
     def get_suggested_users_by_id(
         self, userId="6745191554350760966", count=30, **kwargs
