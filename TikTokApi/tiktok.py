@@ -1356,10 +1356,10 @@ class TikTokApi:
 
                 return user
             except Exception as e:
-                print(t)
                 r = None
-                logging.error('retry ' + str(n))
-                logging.error(e)
+                if not (n % 10):
+                    logging.error('retry ' + str(n))
+                    logging.error(e)
                 n = n + 1
                 time.sleep(2)
 
