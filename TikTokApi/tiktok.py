@@ -190,7 +190,11 @@ class TikTokApi:
         else:
             query = {"url": url, "verifyFp": verifyFp}
 
-        data = requests.request("POST", self.signer_url, data=url)
+        try:
+            data = requests.request("POST", self.signer_url, data=url, timeout=10)
+        except:
+            time.sleep(10)
+            data = requests.request("POST", self.signer_url, data=url, timeout=60)
 
         parsed_data = data.json()['data']
 
