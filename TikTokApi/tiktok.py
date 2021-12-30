@@ -197,10 +197,10 @@ class TikTokApi:
         random.shuffle(sign_list)
 
         try:
-            data = requests.request("POST", sign_list[0], data=url, timeout=10)
+            data = requests.request("POST", sign_list[0], data=url, timeout=5)
         except:
             try:
-                data = requests.request("POST", sign_list[1], data=url, timeout=10)
+                data = requests.request("POST", sign_list[1], data=url, timeout=5)
             except:
                 time.sleep(10)
                 try:
