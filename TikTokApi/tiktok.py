@@ -191,7 +191,9 @@ class TikTokApi:
         else:
             query = {"url": url, "verifyFp": verifyFp}
 
-        sign_list = [self.signer_url, self.reserve_signer]
+        sign_list = [self.signer_url, self.signer_url]
+        if self.reserve_signer:
+            sign_list = [self.signer_url, self.reserve_signer]
         random.shuffle(sign_list)
 
         try:
