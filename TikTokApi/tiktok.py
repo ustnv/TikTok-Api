@@ -46,6 +46,7 @@ class TikTokApi:
         self.proxy = kwargs.get("proxy", None)
         self.custom_verifyFp = kwargs.get("custom_verifyFp")
         self.signer_url = kwargs.get("external_signer", None)
+        self.reserve_signer = kwargs.get("reserve_signer", None)
         self.request_delay = kwargs.get("request_delay", None)
         self.requests_extra_kwargs = kwargs.get("requests_extra_kwargs", {})
 
@@ -190,11 +191,20 @@ class TikTokApi:
         else:
             query = {"url": url, "verifyFp": verifyFp}
 
+        sign_list = [self.signer_url, self.reserve_signer]
+        random.shuffle(sign_list)
+
         try:
-            data = requests.request("POST", self.signer_url, data=url, timeout=10)
+            data = requests.request("POST", sign_list[0], data=url, timeout=10)
         except:
-            time.sleep(10)
-            data = requests.request("POST", self.signer_url, data=url, timeout=60)
+            try:
+                data = requests.request("POST", sign_list[1], data=url, timeout=10)
+            except:
+                time.sleep(10)
+                try:
+                    data = requests.request("POST", sign_list[0], data=url, timeout=10)
+                except:
+                    data = requests.request("POST", sign_list[1], data=url, timeout=10)
 
         parsed_data = data.json()['data']
 
