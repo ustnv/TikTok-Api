@@ -1379,8 +1379,10 @@ class TikTokApi:
                 n = n + 1
                 time.sleep(2)
 
-                if n > 100:
-                    return
+                if n > 3:
+                    raise TikTokNotFoundError(
+                        "TikTok user with username {} does not exist".format(username)
+                    )
 
     def get_suggested_users_by_id(
         self, userId="6745191554350760966", count=30, **kwargs
