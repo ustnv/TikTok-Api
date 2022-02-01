@@ -320,35 +320,34 @@ class TikTokApi:
                 if n > 100:
                     done = True
 
-            if r:
-                try:
-                    json = r.json()
-                    if (
-                            json.get("type") == "verify"
-                            or json.get("verifyConfig", {}).get("type", "") == "verify"
-                    ):
-                        logging.error(
-                            "Tiktok wants to display a catcha."
-                        )
-                        # logging.error(self.get_cookies(**kwargs))
-                        time.sleep(2)
-                        # raise TikTokCaptchaError()
-                    elif json.get("statusCode", 200) == 10201:
-                        # Invalid Entity
-                        raise TikTokNotFoundError(
-                            "TikTok returned a response indicating the entity is invalid"
-                        )
-                    elif json.get("statusCode", 200) == 10219:
-                        # not available in this region
-                        raise TikTokNotAvailableError(
-                            "Content not available for this region"
-                        )
-                    else:
-                        return r.json()
-                except ValueError as e:
-                    text = r.text
-                    logging.error("TikTok response: " + text)
+            try:
+                json = r.json()
+                if (
+                        json.get("type") == "verify"
+                        or json.get("verifyConfig", {}).get("type", "") == "verify"
+                ):
+                    logging.error(
+                        "Tiktok wants to display a catcha."
+                    )
+                    # logging.error(self.get_cookies(**kwargs))
                     time.sleep(2)
+                    # raise TikTokCaptchaError()
+                elif json.get("statusCode", 200) == 10201:
+                    # Invalid Entity
+                    raise TikTokNotFoundError(
+                        "TikTok returned a response indicating the entity is invalid"
+                    )
+                elif json.get("statusCode", 200) == 10219:
+                    # not available in this region
+                    raise TikTokNotAvailableError(
+                        "Content not available for this region"
+                    )
+                else:
+                    return r.json()
+            except ValueError as e:
+                text = r.text
+                logging.error("TikTok response: " + text)
+                time.sleep(2)
 
     def get_cookies(self, **kwargs):
         """Extracts cookies from the kwargs passed to the function for get_data"""
