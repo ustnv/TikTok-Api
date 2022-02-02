@@ -344,9 +344,13 @@ class TikTokApi:
                     )
                 else:
                     return r.json()
-            except ValueError as e:
-                text = r.text
-                logging.error("TikTok response: " + text)
+            except TikTokNotFoundError as e:
+                raise TikTokNotFoundError(
+                    "TikTok returned a response indicating the entity is invalid"
+                )
+            except (ValueError, AttributeError) as e:
+                # text = r.text
+                # logging.error("TikTok response: " + text)
                 time.sleep(2)
 
     def get_cookies(self, **kwargs):
