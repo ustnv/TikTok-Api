@@ -642,7 +642,6 @@ class TikTokApi:
                     response.append(t)
 
             if (not "itemList" in res.keys() or not res.get("hasMore")) and not first:
-                logging.info("TikTok isn't sending more TikToks beyond this point.")
                 return response
 
             realCount = count - len(response)
